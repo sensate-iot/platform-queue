@@ -7,15 +7,16 @@
 
 syntax = "proto3";
 
-option go_package = "platform-queue/proto/generated";
-option csharp_namespace = "SensateIoT.Platform.MessageQueue.Proto";
 package SensateIoT.Platform.MessageQueue.Proto;
+
+option go_package = "platform-queue/proto";
+option csharp_namespace = "SensateIoT.Platform.MessageQueue.Proto";
 
 import "google/protobuf/timestamp.proto";
 
 message Message
 {
-  bytes	QueueName = 1;
-  string MessageBody = 2;
+  string	QueueName = 1;
+  bytes MessageBody = 2;
   google.protobuf.Timestamp  EnqueueTimestamp = 3;
 }

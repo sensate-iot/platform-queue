@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package SensateIoT.Platform.MessageQueue.Proto;
+
+option csharp_namespace = "SensateIoT.Platform.MessageQueue.Proto";
+option go_package = "platform-queue/proto";
+
+import "proto/message.proto";
+
+message DequeueResponse
+{
+  bytes ResponseId = 1;
+  int32 Count = 2;
+  repeated SensateIoT.Platform.MessageQueue.Proto.Message messages = 3;
+}
+
+message DequeueRequest
+{
+  string QueueName = 1;
+  int32 Count = 2;
+}

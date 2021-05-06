@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package SensateIoT.Platform.MessageQueue.Proto;
+
+option csharp_namespace = "SensateIoT.Platform.MessageQueue.Proto";
+option go_package = "platform-queue/proto";
+
+import "proto/enqueuerequest.proto";
+import "proto/dequeuerequest.proto";
+
+service MessageQueue
+{
+  rpc EnqueueMessages(SensateIoT.Platform.MessageQueue.Proto.EnqueueRequest) returns (EnqueueResponse);
+  rpc DequeueMessages(SensateIoT.Platform.MessageQueue.Proto.DequeueRequest) returns (DequeueResponse);
+}

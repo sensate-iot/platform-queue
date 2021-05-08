@@ -6,11 +6,21 @@ GO := @go
 GO_ENV := $(shell go env GOPATH)
 PROTOC := @protoc
 
-_all: all
+ifeq ($(OS),Windows_NT)
+	QSERVER_EXEC = bin/queue-server.exe
+else
+	QSERVER_EXEC = bin/queue-server
+endif
+
+_all: deps all
 
 all: build-rpc
 	@echo Building queue-server
-	$(GO) build -ldflags "-s -w" platform-queue/cmd/queue-server
+	$(GO) build -o $(QSERVER_EXEC) -ldflags "-s -w" platform-queue/cmd/queue-server
+
+deps:
+	@echo Downloading dependencies
+	$(GO) mod download
 
 build-rpc:
 	$(PROTOC) --go_out=. --go_opt=paths=source_relative \

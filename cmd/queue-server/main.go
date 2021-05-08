@@ -12,6 +12,6 @@ var (
 func main() {
 	log.Printf("Starting Sensate IoT Message Queue Server %s", BuildVersion)
 
-	service := grpc.CreateMessageQueueServer("tcp", ":8080", false)
+	service := grpc.New("tcp", ":8080", false)
 	service.Listen()
 }

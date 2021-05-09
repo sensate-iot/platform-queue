@@ -14,7 +14,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestDequeueEmptyQueue(t *testing.T) {
+func TestDeque_CannotDequeueEmptyQueue(t *testing.T) {
 	q := createQueue(10)
 
 	result, err := q.Dequeue()
@@ -23,7 +23,7 @@ func TestDequeueEmptyQueue(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestDequeueBatchEmptyQueue(t *testing.T) {
+func TestDeque_CannotDequeueBatchEmptyQueue(t *testing.T) {
 	q := createQueue(10)
 
 	result, err := q.DequeueBatch(5)
@@ -32,7 +32,7 @@ func TestDequeueBatchEmptyQueue(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestEnqueue(t *testing.T) {
+func TestDeque_Enqueue(t *testing.T) {
 	q := createQueue(10)
 
 	if err := q.Enqueue("abc"); err != nil {
@@ -42,7 +42,7 @@ func TestEnqueue(t *testing.T) {
 	assert.Equal(t, 1, q.Size())
 }
 
-func TestEnqueueBatch(t *testing.T) {
+func TestDeque_EnqueueBatch(t *testing.T) {
 	q := createQueue(10)
 	data := make([]string, 10)
 
@@ -61,7 +61,7 @@ func TestEnqueueBatch(t *testing.T) {
 	assert.Equal(t, result, "Entry 0")
 }
 
-func TestEnqueueBatchOverflow(t *testing.T) {
+func TestDeque_EnqueueBatchOverflow(t *testing.T) {
 	q := createQueue(4)
 	data := make([]string, 10)
 
@@ -76,7 +76,7 @@ func TestEnqueueBatchOverflow(t *testing.T) {
 	assert.Equal(t, 16, q.Capacity())
 }
 
-func TestEnqueueBatchOverflowSplit(t *testing.T) {
+func TestDeque_EnqueueBatchOverflowSplitQueue(t *testing.T) {
 	q, _ := createSplitQueue()
 	data := make([]string, 10)
 
@@ -91,7 +91,7 @@ func TestEnqueueBatchOverflowSplit(t *testing.T) {
 	assert.Equal(t, 32, q.Capacity())
 }
 
-func TestEnqueueOverflow(t *testing.T) {
+func TestDeque_EnqueueOverflow(t *testing.T) {
 	q := createQueue(4)
 	data := make([]string, 4)
 
@@ -107,7 +107,7 @@ func TestEnqueueOverflow(t *testing.T) {
 	assert.Equal(t, 8, q.Capacity())
 }
 
-func TestDequeue(t *testing.T) {
+func TestDeque_Dequeue(t *testing.T) {
 	q := createQueue(10)
 
 	_ = q.Enqueue("abc")
@@ -124,7 +124,7 @@ func TestDequeue(t *testing.T) {
 	}
 }
 
-func TestDequeueBatch(t *testing.T) {
+func TestDeque_DequeueBatch(t *testing.T) {
 	q := createQueue(10)
 
 	_ = q.Enqueue("aba")
@@ -144,7 +144,7 @@ func TestDequeueBatch(t *testing.T) {
 	assert.Equal(t, 16, q.Capacity())
 }
 
-func TestDequeueBatchSplit(t *testing.T) {
+func TestDeque_DequeueBatchSplitQueue(t *testing.T) {
 	q, err := createSplitQueue()
 
 	if err != nil {
@@ -162,7 +162,7 @@ func TestDequeueBatchSplit(t *testing.T) {
 	assert.Equal(t, 1, q.Size())
 }
 
-func TestDequeueBatchLarge(t *testing.T) {
+func TestDeque_DequeueBatchLargeBatch(t *testing.T) {
 	q, err := createSplitQueue()
 
 	if err != nil {
@@ -176,7 +176,7 @@ func TestDequeueBatchLarge(t *testing.T) {
 	assert.Equal(t, 0, q.Size())
 }
 
-func TestDequeueClear(t *testing.T) {
+func TestDeque_Clear(t *testing.T) {
 	q, _ := createSplitQueue()
 
 	q.Clear()

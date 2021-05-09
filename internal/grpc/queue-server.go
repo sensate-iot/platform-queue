@@ -18,7 +18,7 @@ type MessageQueue struct {
 	reflection bool
 }
 
-func New(network string, addr string, reflection bool) *MessageQueue {
+func NewPlatformQueueServer(network string, addr string, reflection bool) *MessageQueue {
 	var mq = &MessageQueue{s: server{}, address: addr, network: network}
 
 	mq.reflection = reflection

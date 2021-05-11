@@ -8,12 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type testInterface struct {
+type segmentTestInterface struct {
 	Value string
 }
 
 func builderFunc() interface{} {
-	return &testInterface{}
+	return &segmentTestInterface{}
 }
 
 func TestDiskQueueSegment_Enqueue(t *testing.T) {
@@ -22,7 +22,7 @@ func TestDiskQueueSegment_Enqueue(t *testing.T) {
 	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
 
 	assert.Nil(t, err)
-	err = seg.enqueue(&testInterface{Value: "abc"})
+	err = seg.enqueue(&segmentTestInterface{Value: "abc"})
 	assert.Nil(t, err)
 }
 
@@ -31,18 +31,18 @@ func TestDiskQueueSegment_EnqueueBatch(t *testing.T) {
 	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
 	assert.Nil(t, err)
 
-	data := make([]*testInterface, 10)
+	data := make([]*segmentTestInterface, 10)
 
 	for idx := range data {
-		data[idx] = &testInterface{Value: fmt.Sprintf("Entry %d", idx)}
+		data[idx] = &segmentTestInterface{Value: fmt.Sprintf("Entry %d", idx)}
 	}
 
-	err = seg.enqueueBatch(testInterfaceToInterface(data))
+	err = seg.enqueueBatch(segmentTestInterfaceToInterface(data))
 	assert.Nil(t, err)
 
 	results, err := seg.dequeueBatch(2)
 	assert.Nil(t, err)
-	values := toTestInterface(results)
+	values := interfaceToSegmentTestInterface(results)
 
 	assert.Equal(t, "Entry 0", values[0].Value)
 }
@@ -53,11 +53,11 @@ func TestDiskQueueSegment_Dequeue(t *testing.T) {
 	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
 
 	assert.Nil(t, err)
-	err = seg.enqueue(&testInterface{Value: "abc"})
+	err = seg.enqueue(&segmentTestInterface{Value: "abc"})
 	assert.Nil(t, err)
 
 	obj, err := seg.dequeue()
-	item, ok := obj.(*testInterface)
+	item, ok := obj.(*segmentTestInterface)
 
 	assert.True(t, ok)
 	assert.Nil(t, err)
@@ -69,11 +69,11 @@ func TestDiskQueueSegment_DequeueBatch(t *testing.T) {
 	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
 	assert.Nil(t, err)
 
-	_ = seg.enqueue(&testInterface{Value: "aba"})
-	_ = seg.enqueue(&testInterface{Value: "abb"})
-	_ = seg.enqueue(&testInterface{Value: "abc"})
-	_ = seg.enqueue(&testInterface{Value: "abd"})
-	_ = seg.enqueue(&testInterface{Value: "abe"})
+	_ = seg.enqueue(&segmentTestInterface{Value: "aba"})
+	_ = seg.enqueue(&segmentTestInterface{Value: "abb"})
+	_ = seg.enqueue(&segmentTestInterface{Value: "abc"})
+	_ = seg.enqueue(&segmentTestInterface{Value: "abd"})
+	_ = seg.enqueue(&segmentTestInterface{Value: "abe"})
 
 	validateBatchDequeue(t, seg)
 }
@@ -83,8 +83,8 @@ func TestDiskQueueSegment_CanDeleteSegment(t *testing.T) {
 	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
 	assert.Nil(t, err)
 
-	_ = seg.enqueue(&testInterface{Value: "aba"})
-	_ = seg.enqueue(&testInterface{Value: "abb"})
+	_ = seg.enqueue(&segmentTestInterface{Value: "aba"})
+	_ = seg.enqueue(&segmentTestInterface{Value: "abb"})
 	path := seg.path()
 
 	assert.True(t, fileExists(path))
@@ -110,11 +110,11 @@ func TestDiskQueueSegment_Load(t *testing.T) {
 	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
 	assert.Nil(t, err)
 
-	_ = seg.enqueue(&testInterface{Value: "aba"})
-	_ = seg.enqueue(&testInterface{Value: "abb"})
-	_ = seg.enqueue(&testInterface{Value: "abc"})
-	_ = seg.enqueue(&testInterface{Value: "abd"})
-	_ = seg.enqueue(&testInterface{Value: "abe"})
+	_ = seg.enqueue(&segmentTestInterface{Value: "aba"})
+	_ = seg.enqueue(&segmentTestInterface{Value: "abb"})
+	_ = seg.enqueue(&segmentTestInterface{Value: "abc"})
+	_ = seg.enqueue(&segmentTestInterface{Value: "abd"})
+	_ = seg.enqueue(&segmentTestInterface{Value: "abe"})
 	_ = seg.close()
 
 	act, err := loadSegment(dir, 8, 1, FastMode, builderFunc)
@@ -136,7 +136,7 @@ func TestDiskQueueSegment_LoadDeletes(t *testing.T) {
 	objects, err := act.dequeueBatch(3)
 	assert.Nil(t, err)
 
-	elements := toTestInterface(objects)
+	elements := interfaceToSegmentTestInterface(objects)
 
 	assert.Equal(t, "Entry 3", elements[0].Value)
 	assert.Equal(t, "Entry 4", elements[1].Value)
@@ -169,7 +169,7 @@ func TestDiskQueueSegment_Size(t *testing.T) {
 	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
 
 	assert.Nil(t, err)
-	err = seg.enqueue(testInterface{Value: "abc"})
+	err = seg.enqueue(segmentTestInterface{Value: "abc"})
 
 	assert.Nil(t, err)
 	assert.Equal(t, 1, seg.size())
@@ -202,18 +202,18 @@ func TestDiskQueueSegment_NormalMode(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, q)
 
-	err = q.enqueue(&testInterface{Value: "Hello 1"})
+	err = q.enqueue(&segmentTestInterface{Value: "Hello 1"})
 	assert.Nil(t, err)
 
-	err = q.enqueue(&testInterface{Value: "Hello 2"})
+	err = q.enqueue(&segmentTestInterface{Value: "Hello 2"})
 	assert.Nil(t, err)
 
-	err = q.enqueue(&testInterface{Value: "Hello 3"})
+	err = q.enqueue(&segmentTestInterface{Value: "Hello 3"})
 	assert.Nil(t, err)
 
 	result, err := q.dequeueBatch(2)
 	assert.Nil(t, err)
-	elements := toTestInterface(result)
+	elements := interfaceToSegmentTestInterface(result)
 
 	assert.Equal(t, "Hello 1", elements[0].Value)
 	assert.Equal(t, "Hello 2", elements[1].Value)
@@ -223,18 +223,18 @@ func validateBatchDequeue(t *testing.T, seg *diskQueueSegment) {
 	objects, err := seg.dequeueBatch(3)
 	assert.Nil(t, err)
 
-	elements := toTestInterface(objects)
+	elements := interfaceToSegmentTestInterface(objects)
 
 	assert.Equal(t, "aba", elements[0].Value)
 	assert.Equal(t, "abb", elements[1].Value)
 	assert.Equal(t, "abc", elements[2].Value)
 }
 
-func toTestInterface(values []interface{}) []testInterface {
-	results := make([]testInterface, len(values))
+func interfaceToSegmentTestInterface(values []interface{}) []segmentTestInterface {
+	results := make([]segmentTestInterface, len(values))
 
 	for idx, elem := range values {
-		item, _ := elem.(*testInterface)
+		item, _ := elem.(*segmentTestInterface)
 		results[idx] = *item
 	}
 
@@ -249,7 +249,7 @@ func createSplitSegmentQueue(dir string) (*diskQueueSegment, error) {
 	}
 
 	for idx := 0; idx < 8; idx++ {
-		err := q.enqueue(&testInterface{Value: fmt.Sprintf("Entry %d", idx)})
+		err := q.enqueue(&segmentTestInterface{Value: fmt.Sprintf("Entry %d", idx)})
 
 		if err != nil {
 			return nil, err
@@ -264,13 +264,13 @@ func createSplitSegmentQueue(dir string) (*diskQueueSegment, error) {
 		}
 	}
 
-	_ = q.enqueue(&testInterface{Value: "abx"})
-	_ = q.enqueue(&testInterface{Value: "aby"})
+	_ = q.enqueue(&segmentTestInterface{Value: "abx"})
+	_ = q.enqueue(&segmentTestInterface{Value: "aby"})
 
 	return q, nil
 }
 
-func testInterfaceToInterface(data []*testInterface) []interface{} {
+func segmentTestInterfaceToInterface(data []*segmentTestInterface) []interface{} {
 	result := make([]interface{}, len(data))
 
 	for idx, entry := range data {

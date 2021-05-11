@@ -1,7 +1,7 @@
 module platform-queue
 
 require (
-	github.com/gofrs/flock v0.8.0 // indirect
+	github.com/gofrs/flock v0.8.0
 	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.2.0
 	github.com/stretchr/testify v1.7.0

@@ -66,7 +66,6 @@ func TestDiskQueueSegment_Dequeue(t *testing.T) {
 
 func TestDiskQueueSegment_DequeueBatch(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "SegTest")
-
 	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
 	assert.Nil(t, err)
 
@@ -77,6 +76,32 @@ func TestDiskQueueSegment_DequeueBatch(t *testing.T) {
 	_ = seg.enqueue(&testInterface{Value: "abe"})
 
 	validateBatchDequeue(t, seg)
+}
+
+func TestDiskQueueSegment_CanDeleteSegment(t *testing.T) {
+	dir, _ := ioutil.TempDir("", "SegTest")
+	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
+	assert.Nil(t, err)
+
+	_ = seg.enqueue(&testInterface{Value: "aba"})
+	_ = seg.enqueue(&testInterface{Value: "abb"})
+	path := seg.path()
+
+	assert.True(t, fileExists(path))
+	err = seg.delete()
+	assert.Nil(t, err)
+	assert.False(t, fileExists(path))
+}
+
+func TestDiskQueueSegment_CannotDeleteNonExistentSegment(t *testing.T) {
+	dir, _ := ioutil.TempDir("", "SegTest")
+	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
+
+	assert.Nil(t, err)
+	err = seg.delete()
+	assert.Nil(t, err)
+	err = seg.delete()
+	assert.NotNil(t, err)
 }
 
 func TestDiskQueueSegment_Load(t *testing.T) {

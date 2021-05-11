@@ -285,6 +285,24 @@ func (s *diskQueueSegment) doEnqueue(obj interface{}) error {
 	return nil
 }
 
+func (s *diskQueueSegment) delete() error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if err := s.file.Close(); err != nil {
+		return fmt.Errorf("segment: unable to close segment file %d: %v", s.sequence, err)
+	}
+
+	if err := os.Remove(s.path()); err != nil {
+		return fmt.Errorf("segment: unable to delete segment file %d: %v", s.sequence, err)
+	}
+
+	s.memoryQueue.Clear()
+	s.file = nil
+
+	return nil
+}
+
 func (s *diskQueueSegment) sync() error {
 	if s.mode == FastMode {
 		s.dirty = true

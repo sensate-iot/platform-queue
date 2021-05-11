@@ -1,11 +1,29 @@
 package queue
 
+import (
+	"sync"
+
+	"github.com/gofrs/flock"
+)
+
 var (
 	MaxUint = ^uint(0)
 	MaxInt  = int(MaxUint >> 1)
 )
 
 type DiskQueue struct {
+	name     string
+	basePath string
+	lockFile *flock.Flock
+
+	firstSegment              *diskQueueSegment
+	lastSegmentSequenceNumber int
+
+	builder func() interface{}
+	mutex   sync.Mutex
+	empty   *sync.Cond
+
+	mode DiskQueueMode
 	size int
 }
 

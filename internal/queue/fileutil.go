@@ -24,21 +24,27 @@ func (f filesByName) Less(i, j int) bool {
 	return f[i].Name() < f[j].Name()
 }
 
-func getMinMaxQueueSegment(files []fs.FileInfo) (int,int) {
-	if len(files) == 0 {
+func getMinMaxQueueSegment(files []fs.FileInfo) (int, int) {
+	if len(files) <= 1 { // No files or lock file only
 		return 0, 0
 	}
 
 	sort.Sort(filesByName(files))
+	files = files[:len(files)-1]
 
 	firstFile := files[0]
-	lastFile  := files[len(files) - 1]
+	lastFile := files[len(files)-1]
 
 	return fileNameToInteger(firstFile.Name()), fileNameToInteger(lastFile.Name())
-
 }
 
 func fileNameToInteger(fileName string) int {
+	ext := filepath.Ext(fileName)
+
+	if ext == "lock" {
+		return -1
+	}
+
 	name := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 	asInt, _ := strconv.Atoi(name)
 

@@ -14,7 +14,7 @@ endif
 
 _all: deps all
 
-all: build-rpc
+all: build-grpc
 	@echo Building queue-server
 	$(GO) build -o $(QSERVER_EXEC) -ldflags "-s -w" platform-queue/cmd/queue-server
 

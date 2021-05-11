@@ -55,7 +55,8 @@ func TestDiskQueue_LoadExisting(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, q1)
 
-	q2, err := NewDiskQueue(dir, "TestQueue", buildDiskQueueInterface, 100)
+	err = q1.(*DiskQueue).Close()
+	q2, err := LoadDiskQueue(dir, "TestQueue", buildDiskQueueInterface, 100)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, q2)

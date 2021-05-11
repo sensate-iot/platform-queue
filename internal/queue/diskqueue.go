@@ -39,24 +39,11 @@ const (
 )
 
 func NewDiskQueue(path, name string, builder func() interface{}, segmentCapacity int) (Queue,error) {
-	q, err := constructNewDiskQueue(path, name, builder, segmentCapacity)
+	return constructOrLoadDq(path, name, builder, segmentCapacity, false)
+}
 
-	if err != nil {
-		return nil, err
-	}
-
-	q.mutex.Lock()
-	defer q.mutex.Unlock()
-
-	if err := q.lock(); err != nil {
-		return nil, err
-	}
-
-	if err := q.load(); err != nil {
-		return nil, err
-	}
-
-	return q, nil
+func LoadDiskQueue(path, name string, builder func() interface{}, segmentCapacity int) (Queue,error) {
+	return constructOrLoadDq(path, name, builder, segmentCapacity, true)
 }
 
 func (q *DiskQueue) Enqueue(value interface{}) error {
@@ -85,6 +72,36 @@ func (q *DiskQueue) Size() int {
 
 func (q *DiskQueue) Clear() {
 
+}
+
+func (q *DiskQueue) Close() error {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
+	if q.lockFile == nil {
+		return fmt.Errorf("disk-queue: queue already closed")
+	}
+
+	if err := q.lockFile.Close(); err != nil {
+		return fmt.Errorf("disk-queue: unable to unlock lock file for queue '%v': %v", q.name, err)
+	}
+
+	if err := os.Remove(q.lockFile.Path()); err != nil {
+		return fmt.Errorf("disk-queue: unable to remove lock file for queue '%v': %v", q.name, err)
+	}
+
+	q.lockFile = nil
+	q.lockFile = nil
+	q.empty.Broadcast()
+
+	if err := q.firstSegment.close(); err != nil {
+		return fmt.Errorf("disk-queue: unable to close segments for queue '%v': %v", q.name, err)
+	}
+
+	q.firstSegment = nil
+	q.lastSegmentSequenceNumber = 0
+
+	return nil
 }
 
 func (q *DiskQueue) load() error {
@@ -162,7 +179,7 @@ func (q* DiskQueue) lock() error {
 	return nil
 }
 
-func verifyQueue(q *DiskQueue) error {
+func verifyQueue(q *DiskQueue, load bool) error {
 	if len(q.name) == 0 {
 		return fmt.Errorf("disk-queue: queue name length should be greater than 0")
 	}
@@ -177,12 +194,14 @@ func verifyQueue(q *DiskQueue) error {
 
 	fullPath := getQueuePath(q)
 
-	if dirExists(fullPath) {
-		return fmt.Errorf("disk-queue: queue path already exists (queue might already exist")
-	}
+	if !load {
+		if dirExists(fullPath) {
+			return fmt.Errorf("disk-queue: queue path already exists (queue might already exist)")
+		}
 
-	if err := os.Mkdir(fullPath, 0644); err != nil {
-		return fmt.Errorf("disk-queue: unable to create queue directory: %v", err)
+		if err := os.Mkdir(fullPath, 0644); err != nil {
+			return fmt.Errorf("disk-queue: unable to create queue directory: %v", err)
+		}
 	}
 
 	return nil
@@ -196,7 +215,7 @@ func getQueuePath(q *DiskQueue) string {
 	return path.Join(q.basePath, q.name)
 }
 
-func constructNewDiskQueue(path, name string, builder func() interface{}, segmentCapacity int) (*DiskQueue, error) {
+func doConstructOrLoadDq(path, name string, builder func() interface{}, segmentCapacity int, load bool) (*DiskQueue, error) {
 	q := DiskQueue{
 		name: name,
 		basePath: path,
@@ -206,11 +225,32 @@ func constructNewDiskQueue(path, name string, builder func() interface{}, segmen
 		size: 0,
 	}
 
-	if err := verifyQueue(&q); err != nil {
+	if err := verifyQueue(&q, load); err != nil {
 		return nil, err
 	}
 
 	q.empty = sync.NewCond(&q.mutex)
 
 	return &q, nil
+}
+
+func constructOrLoadDq(path, name string, builder func() interface{}, segmentCapacity int, load bool) (*DiskQueue, error) {
+	q, err := doConstructOrLoadDq(path, name, builder, segmentCapacity, load)
+
+	if err != nil {
+		return nil, err
+	}
+
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
+	if err := q.lock(); err != nil {
+		return nil, err
+	}
+
+	if err := q.load(); err != nil {
+		return nil, err
+	}
+
+	return q, nil
 }

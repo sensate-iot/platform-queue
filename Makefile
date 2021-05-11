@@ -28,6 +28,10 @@ build-rpc:
 		proto/message.proto proto/dequeuerequest.proto \
 		 proto/enqueuerequest.proto proto/messagequeue.proto
 
+test: deps
+	@echo Running unit tests
+	$(GO) test -cover ./...
+
 get-protoc:
 	$(GO) get google.golang.org/protobuf/cmd/protoc-gen-go
 	$(GO) get google.golang.org/grpc/cmd/protoc-gen-go-grpc

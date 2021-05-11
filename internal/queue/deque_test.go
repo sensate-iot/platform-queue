@@ -2,8 +2,9 @@ package queue
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNew(t *testing.T) {
@@ -172,6 +173,7 @@ func TestDeque_DequeueBatchLargeBatch(t *testing.T) {
 	size := q.Size()
 	result, err := q.DequeueBatch(100)
 
+	assert.Nil(t, err)
 	assert.Equal(t, size, len(result), "Result and original size differ.")
 	assert.Equal(t, 0, q.Size())
 }
@@ -189,7 +191,7 @@ func createQueue(capacity int) Queue {
 	return NewDeque(capacity)
 }
 
-func createSplitQueue() (Queue,error) {
+func createSplitQueue() (Queue, error) {
 	q := NewDeque(8)
 
 	for idx := 0; idx < 8; idx++ {

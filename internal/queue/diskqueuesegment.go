@@ -23,7 +23,7 @@ type diskQueueSegment struct {
 	dirty         bool
 }
 
-func newSegment(path string, size, seq int, mode DiskQueueMode, builder func() interface{}) (*diskQueueSegment,error) {
+func newSegment(path string, size, seq int, mode DiskQueueMode, builder func() interface{}) (*diskQueueSegment, error) {
 	seg := diskQueueSegment{
 		memoryQueue:   NewDeque(size),
 		directoryPath: path,
@@ -43,7 +43,8 @@ func newSegment(path string, size, seq int, mode DiskQueueMode, builder func() i
 	}
 
 	var err error
-	seg.file, err = os.OpenFile(seg.path(), os.O_APPEND | os.O_CREATE | os.O_WRONLY, 0644)
+
+	seg.file, err = os.OpenFile(seg.path(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 
 	if err != nil {
 		return nil, fmt.Errorf("segment: unable to create segment file: %v", seg.path())
@@ -52,7 +53,7 @@ func newSegment(path string, size, seq int, mode DiskQueueMode, builder func() i
 	return &seg, nil
 }
 
-func loadNewSegment(path string, size, seq int, mode DiskQueueMode, builder func() interface{}) (*diskQueueSegment, error) {
+func loadSegment(path string, size, seq int, mode DiskQueueMode, builder func() interface{}) (*diskQueueSegment, error) {
 	seg := diskQueueSegment{
 		memoryQueue:   NewDeque(size),
 		directoryPath: path,
@@ -76,7 +77,7 @@ func loadNewSegment(path string, size, seq int, mode DiskQueueMode, builder func
 	}
 
 	var err error
-	seg.file, err = os.OpenFile(seg.path(), os.O_APPEND | os.O_WRONLY, 0644)
+	seg.file, err = os.OpenFile(seg.path(), os.O_APPEND|os.O_WRONLY, 0644)
 
 	if err != nil {
 		return nil, fmt.Errorf("segment: unable to reopen segment file: %v", err)
@@ -113,7 +114,7 @@ func (s *diskQueueSegment) load() error {
 	return nil
 }
 
-func (s *diskQueueSegment) doLoad() (bool,error) {
+func (s *diskQueueSegment) doLoad() (bool, error) {
 	lengthBytes := make([]byte, 4)
 
 	if _, err := io.ReadFull(s.file, lengthBytes); err != nil {
@@ -185,7 +186,7 @@ func (s *diskQueueSegment) dequeue() (interface{}, error) {
 	return s.doDequeue()
 }
 
-func (s *diskQueueSegment) dequeueBatch(count int) ([]interface{},error) {
+func (s *diskQueueSegment) dequeueBatch(count int) ([]interface{}, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -205,21 +206,21 @@ func (s *diskQueueSegment) dequeueBatch(count int) ([]interface{},error) {
 	return result, nil
 }
 
-func (s *diskQueueSegment) doDequeue() (interface{},error) {
+func (s *diskQueueSegment) doDequeue() (interface{}, error) {
 	length := 0
 	lengthBytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(lengthBytes, uint32(length))
 
 	// Write the delete marker (4-byte zero's)
 	if _, err := s.file.Write(lengthBytes); err != nil {
-		return nil, fmt.Errorf("segment: unable to write delete marker on " +
+		return nil, fmt.Errorf("segment: unable to write delete marker on "+
 			"segment %d: %v", s.sequence, err)
 	}
 
 	object, err := s.memoryQueue.Dequeue()
 
 	if err != nil {
-		return nil, fmt.Errorf("segment: unable to deque segment (seq: %d) " +
+		return nil, fmt.Errorf("segment: unable to deque segment (seq: %d) "+
 			"from memory queue: %v", s.sequence, err)
 	}
 
@@ -285,7 +286,7 @@ func (s *diskQueueSegment) doEnqueue(obj interface{}) error {
 }
 
 func (s *diskQueueSegment) sync() error {
-	if s.mode == NormalMode {
+	if s.mode == FastMode {
 		s.dirty = true
 		return nil
 	}
@@ -301,6 +302,20 @@ func (s *diskQueueSegment) sync() error {
 func (s *diskQueueSegment) path() string {
 	file := fmt.Sprintf("%016d.que", s.sequence)
 	return path.Join(s.directoryPath, file)
+}
+
+func (s *diskQueueSegment) sizeOnDisk() int {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	return s.memoryQueue.Size() + s.removeCount
+}
+
+func (s *diskQueueSegment) setMode(mode DiskQueueMode) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	s.mode = mode
 }
 
 func (s *diskQueueSegment) size() int {

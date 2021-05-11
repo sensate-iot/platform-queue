@@ -13,7 +13,7 @@ type DiskQueueMode int
 
 const (
 	NormalMode DiskQueueMode = 0
-	FastMode DiskQueueMode = 1
+	FastMode   DiskQueueMode = 1
 )
 
 func NewDiskQueue() Queue {
@@ -30,11 +30,11 @@ func (q *DiskQueue) EnqueueBatch(values []interface{}) error {
 	return nil
 }
 
-func (q *DiskQueue) Dequeue() (interface{},error) {
+func (q *DiskQueue) Dequeue() (interface{}, error) {
 	return nil, nil
 }
 
-func (q *DiskQueue) DequeueBatch(count int) ([]interface{},error) {
+func (q *DiskQueue) DequeueBatch(count int) ([]interface{}, error) {
 	return nil, nil
 }
 

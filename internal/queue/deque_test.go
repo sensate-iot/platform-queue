@@ -187,6 +187,18 @@ func TestDeque_Clear(t *testing.T) {
 	assert.Equal(t, 8, q.Capacity())
 }
 
+func TestDeque_Close(t *testing.T) {
+	q, _ := createSplitQueue()
+
+	assert.NotNil(t, q)
+	assert.Greater(t, q.Size(), 1)
+
+	err := q.Close()
+
+	assert.Nil(t, err)
+	assert.Equal(t, 0, q.Size())
+}
+
 func createQueue(capacity int) Queue {
 	return NewDeque(capacity)
 }

@@ -45,7 +45,7 @@ func TestDiskQueue_New(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, diskQ.firstSegment.sequence, 1)
 	assert.Equal(t, diskQ.firstSegment.memoryQueue.Capacity(), 128)
-	assert.Equal(t, diskQ.lastSegmentSequenceNumber, 1)
+	assert.Equal(t, diskQ.lastSegment.sequence, 1)
 }
 
 func TestDiskQueue_LoadExisting(t *testing.T) {
@@ -60,6 +60,52 @@ func TestDiskQueue_LoadExisting(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.NotNil(t, q2)
+}
+
+func TestDiskQueue_Enqueue(t *testing.T) {
+	q, _ := createDiskQueue()
+	assert.NotNil(t, q)
+
+	err := q.Enqueue(&diskQueueInterface{Value: "Hi"})
+
+	assert.Nil(t, err)
+	assert.Equal(t, 1, q.Size())
+}
+
+func TestDiskQueue_EnqueueOverflow(t *testing.T) {
+	dir, _ := ioutil.TempDir("", "SegTest")
+	q, err := NewDiskQueue(dir, "TestQueue", buildDiskQueueInterface, 2)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, q)
+
+	err = q.Enqueue(&diskQueueInterface{Value: "Hi 1"})
+	assert.Nil(t, err)
+
+	err = q.Enqueue(&diskQueueInterface{Value: "Hi 2"})
+	assert.Nil(t, err)
+
+	err = q.Enqueue(&diskQueueInterface{Value: "Hi 3"})
+
+	assert.Nil(t, err)
+	assert.Equal(t, 3, q.Size())
+}
+
+func TestDiskQueue_EnqueueOverflowTwice(t *testing.T) {
+	dir, _ := ioutil.TempDir("", "SegTest")
+	q, err := NewDiskQueue(dir, "TestQueue", buildDiskQueueInterface, 2)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, q)
+
+	err = q.Enqueue(&diskQueueInterface{Value: "Hi 1"})
+	err = q.Enqueue(&diskQueueInterface{Value: "Hi 2"})
+	err = q.Enqueue(&diskQueueInterface{Value: "Hi 3"})
+	err = q.Enqueue(&diskQueueInterface{Value: "Hi 4"})
+	err = q.Enqueue(&diskQueueInterface{Value: "Hi 5"})
+
+	assert.Nil(t, err)
+	assert.Equal(t, 5, q.Size())
 }
 
 func TestDiskQueue_Size(t *testing.T) {

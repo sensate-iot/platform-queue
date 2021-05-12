@@ -17,17 +17,17 @@ var (
 type DiskQueue struct {
 	name     string
 	basePath string
-	builder func() interface{}
+	builder  func() interface{}
 
 	firstSegment *diskQueueSegment
-	lastSegmentSequenceNumber int
+	lastSegment  *diskQueueSegment
 
 	lockFile *flock.Flock
-	mutex   sync.Mutex
-	empty   *sync.Cond
+	mutex    sync.Mutex
+	empty    *sync.Cond
 
-	mode DiskQueueMode
-	size int
+	mode            DiskQueueMode
+	size            int
 	segmentCapacity int
 }
 
@@ -38,15 +38,54 @@ const (
 	FastMode   DiskQueueMode = 1
 )
 
-func NewDiskQueue(path, name string, builder func() interface{}, segmentCapacity int) (Queue,error) {
+func NewDiskQueue(path, name string, builder func() interface{}, segmentCapacity int) (Queue, error) {
 	return constructOrLoadDq(path, name, builder, segmentCapacity, false)
 }
 
-func LoadDiskQueue(path, name string, builder func() interface{}, segmentCapacity int) (Queue,error) {
+func LoadDiskQueue(path, name string, builder func() interface{}, segmentCapacity int) (Queue, error) {
 	return constructOrLoadDq(path, name, builder, segmentCapacity, true)
 }
 
 func (q *DiskQueue) Enqueue(value interface{}) error {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
+	if q.lockFile == nil || !q.lockFile.Locked() {
+		return fmt.Errorf("disk-queue: queue not locked")
+	}
+
+	if q.lastSegment.sizeOnDisk() >= q.segmentCapacity {
+		fullPath := path.Join(q.basePath, q.name)
+
+		if err := q.addNewSegment(fullPath); err != nil {
+			return err
+		}
+	}
+
+	if err := q.lastSegment.enqueue(value); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (q *DiskQueue) addNewSegment(path string) error {
+	segment, err := newSegment(path, q.segmentCapacity, q.lastSegment.sequence+1, q.mode, q.builder)
+
+	if err != nil {
+		return err
+	}
+
+	if q.firstSegment.sequence != q.lastSegment.sequence {
+		err := q.lastSegment.close()
+
+		if err != nil {
+			return fmt.Errorf("disk-queue: unable to close segment %d: %v", q.lastSegment.sequence, err)
+		}
+	}
+
+	q.lastSegment = segment
+
 	return nil
 }
 
@@ -67,7 +106,21 @@ func (q *DiskQueue) Capacity() int {
 }
 
 func (q *DiskQueue) Size() int {
-	return q.size
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
+	return q.getSize()
+}
+
+func (q *DiskQueue) getSize() int {
+	if q.firstSegment.sequence == q.lastSegment.sequence {
+		return q.firstSegment.size()
+	}
+
+	segmentCount := q.lastSegment.sequence - q.firstSegment.sequence
+	segmentCount -= 1
+
+	return q.firstSegment.size() + (segmentCount * q.segmentCapacity) + q.lastSegment.size()
 }
 
 func (q *DiskQueue) Clear() {
@@ -94,12 +147,28 @@ func (q *DiskQueue) Close() error {
 	q.lockFile = nil
 	q.empty.Broadcast()
 
+	if err := q.doClose(); err != nil {
+		return err
+	}
+
+	q.firstSegment = nil
+	q.lastSegment = nil
+
+	return nil
+}
+
+func (q *DiskQueue) doClose() error {
 	if err := q.firstSegment.close(); err != nil {
 		return fmt.Errorf("disk-queue: unable to close segments for queue '%v': %v", q.name, err)
 	}
 
-	q.firstSegment = nil
-	q.lastSegmentSequenceNumber = 0
+	if q.firstSegment.sequence == q.lastSegment.sequence {
+		return nil
+	}
+
+	if err := q.lastSegment.close(); err != nil {
+		return fmt.Errorf("disk-queue: unable to close segments for queue '%v': %v", q.name, err)
+	}
 
 	return nil
 }
@@ -138,7 +207,7 @@ func (q *DiskQueue) createNewSegment(path string) error {
 	}
 
 	q.firstSegment = segment
-	q.lastSegmentSequenceNumber = segment.sequence
+	q.lastSegment = segment
 
 	return nil
 }
@@ -153,15 +222,21 @@ func (q *DiskQueue) doLoadQueueSegments(path string, min, max int) error {
 	q.firstSegment = segment
 
 	if min == max {
-		q.lastSegmentSequenceNumber = min
+		q.lastSegment = segment
 	} else {
-		q.lastSegmentSequenceNumber = max
+		segment, err = loadSegment(path, q.segmentCapacity, max, q.mode, q.builder)
+
+		if err != nil {
+			return err
+		}
+
+		q.lastSegment = segment
 	}
 
 	return nil
 }
 
-func (q* DiskQueue) lock() error {
+func (q *DiskQueue) lock() error {
 	lockFile := path.Join(getQueuePath(q), lockFileName(q))
 	file := flock.New(lockFile)
 
@@ -217,12 +292,12 @@ func getQueuePath(q *DiskQueue) string {
 
 func doConstructOrLoadDq(path, name string, builder func() interface{}, segmentCapacity int, load bool) (*DiskQueue, error) {
 	q := DiskQueue{
-		name: name,
-		basePath: path,
-		builder: builder,
+		name:            name,
+		basePath:        path,
+		builder:         builder,
 		segmentCapacity: segmentCapacity,
-		mode: NormalMode,
-		size: 0,
+		mode:            NormalMode,
+		size:            0,
 	}
 
 	if err := verifyQueue(&q, load); err != nil {

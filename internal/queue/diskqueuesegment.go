@@ -204,6 +204,7 @@ func (s *diskQueueSegment) dequeueBatch(count int) ([]interface{}, error) {
 		}
 	}
 
+	s.removeCount += len(result)
 	return result, nil
 }
 
@@ -349,6 +350,13 @@ func (s *diskQueueSegment) sizeOnDisk() int {
 	defer s.mutex.Unlock()
 
 	return s.memoryQueue.Size() + s.removeCount
+}
+
+func (s *diskQueueSegment) empty() bool {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	return s.memoryQueue.Size() == 0
 }
 
 func (s *diskQueueSegment) setMode(mode DiskQueueMode) {

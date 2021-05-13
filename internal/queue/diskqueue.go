@@ -138,6 +138,9 @@ func (q *DiskQueue) enqueueSingleBatch(batch []interface{}) error {
 }
 
 func (q *DiskQueue) Dequeue() (interface{}, error) {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
 	obj, err := q.firstSegment.dequeue()
 
 	if err != nil {
@@ -184,7 +187,36 @@ func (q *DiskQueue) dequeueFromFile(path string) error {
 }
 
 func (q *DiskQueue) DequeueBatch(count int) ([]interface{}, error) {
-	return nil, nil
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
+	fullPath := path.Join(q.basePath, q.name)
+	values := make([]interface{}, 0)
+
+	for count > 0 {
+		batch, err := q.firstSegment.dequeueBatch(count)
+
+		if err != nil && q.firstSegment.empty() {
+			count = 0
+		} else {
+			count -= len(batch)
+			values = append(values, batch...)
+
+			if err != nil {
+				return values, err
+			}
+		}
+
+		if q.firstSegment.size() == 0 && q.firstSegment.sizeOnDisk() >= q.segmentCapacity {
+			err := q.dequeueFromFile(fullPath)
+
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return values, nil
 }
 
 func (q *DiskQueue) Capacity() int {

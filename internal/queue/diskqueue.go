@@ -54,6 +54,10 @@ func (q *DiskQueue) Enqueue(value interface{}) error {
 		return fmt.Errorf("disk-queue: queue not locked")
 	}
 
+	return q.doEnqueue(value)
+}
+
+func (q *DiskQueue) doEnqueue(value interface{}) error {
 	if q.lastSegment.sizeOnDisk() >= q.segmentCapacity {
 		fullPath := path.Join(q.basePath, q.name)
 
@@ -90,6 +94,46 @@ func (q *DiskQueue) addNewSegment(path string) error {
 }
 
 func (q *DiskQueue) EnqueueBatch(values []interface{}) error {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
+	if q.lockFile == nil || !q.lockFile.Locked() {
+		return fmt.Errorf("disk-queue: queue not locked")
+	}
+
+	return q.enqueueBatch(values)
+}
+
+func (q *DiskQueue) enqueueBatch(values []interface{}) error {
+	total := len(values)
+
+	for total > 0 {
+		remaining := min(q.segmentCapacity - q.lastSegment.sizeOnDisk(), len(values))
+		total -= remaining
+		batch := values[:remaining]
+		values = values[remaining:]
+
+		if err := q.enqueueSingleBatch(batch); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (q *DiskQueue) enqueueSingleBatch(batch []interface{}) error {
+	if _, err := q.lastSegment.enqueueBatch(batch); err != nil {
+		return err
+	}
+
+	if q.segmentCapacity - q.lastSegment.sizeOnDisk() <= 0 {
+		fullPath := path.Join(q.basePath, q.name)
+
+		if err := q.addNewSegment(fullPath); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

@@ -37,8 +37,9 @@ func TestDiskQueueSegment_EnqueueBatch(t *testing.T) {
 		data[idx] = &segmentTestInterface{Value: fmt.Sprintf("Entry %d", idx)}
 	}
 
-	err = seg.enqueueBatch(segmentTestInterfaceToInterface(data))
+	count, err := seg.enqueueBatch(segmentTestInterfaceToInterface(data))
 	assert.Nil(t, err)
+	assert.Equal(t, len(data), count)
 
 	results, err := seg.dequeueBatch(2)
 	assert.Nil(t, err)

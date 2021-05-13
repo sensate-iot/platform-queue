@@ -108,6 +108,32 @@ func TestDiskQueue_EnqueueOverflowTwice(t *testing.T) {
 	assert.Equal(t, 5, q.Size())
 }
 
+func TestDiskQueue_EnqueueBatch(t *testing.T) {
+	dir, _ := ioutil.TempDir("", "SegTest")
+	q, err := NewDiskQueue(dir, "TestQueue", buildDiskQueueInterface, 2)
+	assert.Nil(t, err)
+	assert.NotNil(t, q)
+
+	values := make([]diskQueueInterface, 5)
+	values[0] = diskQueueInterface{Value: "Hello 1"}
+	values[1] = diskQueueInterface{Value: "Hello 2"}
+	values[2] = diskQueueInterface{Value: "Hello 3"}
+	values[3] = diskQueueInterface{Value: "Hello 4"}
+	values[4] = diskQueueInterface{Value: "Hello 5"}
+
+	err = q.EnqueueBatch(diskQueueInterfaceToInterface(values))
+
+	assert.Nil(t, err)
+	assert.Equal(t, 5, q.Size())
+	/*result, err := q.Dequeue()
+
+	assert.Nil(t, err)
+	assert.Equal(t, 4, q.Size())
+	value, ok := result.(diskQueueInterface)
+	assert.True(t, ok)
+	assert.Equal(t, "Hello 1", value.Value)*/
+}
+
 func TestDiskQueue_Size(t *testing.T) {
 	q,err := createDiskQueue()
 
@@ -120,4 +146,18 @@ func createDiskQueue() (Queue,error) {
 	q, err := NewDiskQueue(dir, "TestQueue", buildDiskQueueInterface, 100)
 
 	return q,err
+}
+
+func diskQueueInterfaceToInterface(data []diskQueueInterface) []interface{} {
+	result := make([]interface{}, len(data))
+
+	for idx, entry := range data {
+		result[idx] = entry
+	}
+
+	return result
+}
+
+func toDiskQueueInterface(data []interface{}) []diskQueueInterface {
+	return nil
 }

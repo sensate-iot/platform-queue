@@ -190,31 +190,40 @@ func (s *diskQueueSegment) dequeueBatch(count int) ([]interface{}, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	dequeueCount := min(count, s.memoryQueue.Size())
-	result := make([]interface{}, dequeueCount)
+	result, err := s.memoryQueue.DequeueBatch(count)
 
-	for idx := 0; idx < dequeueCount; idx++ {
-		obj, err := s.doDequeue()
+	if err != nil {
+		return nil, err
+	}
+
+	for idx := 0; idx < len(result); idx++ {
+		err := s.dequeueFile()
 
 		if err != nil {
 			return nil, err
 		}
-
-		result[idx] = obj
 	}
 
 	return result, nil
 }
 
-func (s *diskQueueSegment) doDequeue() (interface{}, error) {
+func (s *diskQueueSegment) dequeueFile() error {
 	length := 0
 	lengthBytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(lengthBytes, uint32(length))
 
 	// Write the delete marker (4-byte zero's)
 	if _, err := s.file.Write(lengthBytes); err != nil {
-		return nil, fmt.Errorf("segment: unable to write delete marker on "+
+		return fmt.Errorf("segment: unable to write delete marker on "+
 			"segment %d: %v", s.sequence, err)
+	}
+
+	return nil
+}
+
+func (s *diskQueueSegment) doDequeue() (interface{}, error) {
+	if err := s.dequeueFile(); err != nil {
+		return nil, err
 	}
 
 	object, err := s.memoryQueue.Dequeue()
@@ -244,21 +253,26 @@ func (s *diskQueueSegment) enqueue(obj interface{}) error {
 	return s.sync()
 }
 
-func (s *diskQueueSegment) enqueueBatch(objects []interface{}) error {
+func (s *diskQueueSegment) enqueueBatch(objects []interface{}) (int, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+	var count int
 
 	for _, entry := range objects {
-		if err := s.doEnqueue(entry); err != nil {
+		if err := s.enqueueToFile(entry); err != nil {
 			_ = s.sync()
-			return err
+			return count, err
 		}
+
+		count++
 	}
 
-	return s.sync()
+	_ = s.memoryQueue.EnqueueBatch(objects)
+
+	return count, s.sync()
 }
 
-func (s *diskQueueSegment) doEnqueue(obj interface{}) error {
+func (s *diskQueueSegment) enqueueToFile(obj interface{}) error {
 	var buff bytes.Buffer
 	enc := gob.NewEncoder(&buff)
 
@@ -276,6 +290,14 @@ func (s *diskQueueSegment) doEnqueue(obj interface{}) error {
 
 	if _, err := s.file.Write(buff.Bytes()); err != nil {
 		return fmt.Errorf("segment: failed to write gob object to segment %d", s.sequence)
+	}
+
+	return nil
+}
+
+func (s *diskQueueSegment) doEnqueue(obj interface{}) error {
+	if err := s.enqueueToFile(obj); err != nil {
+		return nil
 	}
 
 	if s.memoryQueue.Enqueue(obj) != nil {

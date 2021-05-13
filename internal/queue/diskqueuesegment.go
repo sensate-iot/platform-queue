@@ -197,10 +197,10 @@ func (s *diskQueueSegment) dequeueBatch(count int) ([]interface{}, error) {
 	}
 
 	for idx := 0; idx < len(result); idx++ {
-		err := s.dequeueFile()
+		dqErr := s.dequeueFile()
 
-		if err != nil {
-			return nil, err
+		if dqErr != nil {
+			return nil, dqErr
 		}
 	}
 

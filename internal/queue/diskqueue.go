@@ -108,7 +108,7 @@ func (q *DiskQueue) enqueueBatch(values []interface{}) error {
 	total := len(values)
 
 	for total > 0 {
-		remaining := min(q.segmentCapacity - q.lastSegment.sizeOnDisk(), len(values))
+		remaining := min(q.segmentCapacity-q.lastSegment.sizeOnDisk(), len(values))
 		total -= remaining
 		batch := values[:remaining]
 		values = values[remaining:]
@@ -126,7 +126,7 @@ func (q *DiskQueue) enqueueSingleBatch(batch []interface{}) error {
 		return err
 	}
 
-	if q.segmentCapacity - q.lastSegment.sizeOnDisk() <= 0 {
+	if q.segmentCapacity-q.lastSegment.sizeOnDisk() <= 0 {
 		fullPath := path.Join(q.basePath, q.name)
 
 		if err := q.addNewSegment(fullPath); err != nil {
@@ -138,7 +138,49 @@ func (q *DiskQueue) enqueueSingleBatch(batch []interface{}) error {
 }
 
 func (q *DiskQueue) Dequeue() (interface{}, error) {
-	return nil, nil
+	obj, err := q.firstSegment.dequeue()
+
+	if err != nil {
+		return nil, err
+	}
+
+	if q.firstSegment.size() == 0 && q.firstSegment.sizeOnDisk() >= q.segmentCapacity {
+		fullPath := path.Join(q.basePath, q.name)
+		err = q.dequeueFromFile(fullPath)
+	}
+
+	return obj, err
+}
+
+func (q *DiskQueue) dequeueFromFile(path string) error {
+	if err := q.firstSegment.delete(); err != nil {
+		return err
+	}
+
+	if q.firstSegment.sequence == q.lastSegment.sequence {
+		segment, err := newSegment(path, q.segmentCapacity, q.lastSegment.sequence+1, q.mode, q.builder)
+
+		if err != nil {
+			return err
+		}
+
+		q.firstSegment = segment
+		q.lastSegment = segment
+	} else {
+		if q.firstSegment.sequence+1 == q.lastSegment.sequence {
+			q.firstSegment = q.lastSegment
+		} else {
+			segment, err := loadSegment(path, q.segmentCapacity, q.firstSegment.sequence+1, q.mode, q.builder)
+
+			if err != nil {
+				return nil
+			}
+
+			q.firstSegment = segment
+		}
+	}
+
+	return nil
 }
 
 func (q *DiskQueue) DequeueBatch(count int) ([]interface{}, error) {

@@ -20,8 +20,8 @@ type DiskQueue struct {
 	basePath string
 	builder  func() interface{}
 
-	firstSegment *diskQueueSegment
-	lastSegment  *diskQueueSegment
+	firstSegment *DiskQueueSegment
+	lastSegment  *DiskQueueSegment
 
 	lockFile *flock.Flock
 	mutex    sync.Mutex
@@ -75,7 +75,7 @@ func (q *DiskQueue) doEnqueue(value interface{}) error {
 }
 
 func (q *DiskQueue) addNewSegment(path string) error {
-	segment, err := newSegment(path, q.segmentCapacity, q.lastSegment.sequence+1, q.mode, q.builder)
+	segment, err := newDiskQueueSegment(path, q.segmentCapacity, q.lastSegment.sequence+1, q.mode, q.builder)
 
 	if err != nil {
 		return err
@@ -162,7 +162,7 @@ func (q *DiskQueue) dequeueFromFile(path string) error {
 	}
 
 	if q.firstSegment.sequence == q.lastSegment.sequence {
-		segment, err := newSegment(path, q.segmentCapacity, q.lastSegment.sequence+1, q.mode, q.builder)
+		segment, err := newDiskQueueSegment(path, q.segmentCapacity, q.lastSegment.sequence+1, q.mode, q.builder)
 
 		if err != nil {
 			return err
@@ -174,7 +174,7 @@ func (q *DiskQueue) dequeueFromFile(path string) error {
 		if q.firstSegment.sequence+1 == q.lastSegment.sequence {
 			q.firstSegment = q.lastSegment
 		} else {
-			segment, err := loadSegment(path, q.segmentCapacity, q.firstSegment.sequence+1, q.mode, q.builder)
+			segment, err := loadDiskQueueSegment(path, q.segmentCapacity, q.firstSegment.sequence+1, q.mode, q.builder)
 
 			if err != nil {
 				return nil
@@ -323,7 +323,7 @@ func (q *DiskQueue) doLoad(path string, min, max int) error {
 }
 
 func (q *DiskQueue) createNewSegment(path string) error {
-	segment, err := newSegment(path, q.segmentCapacity, 1, q.mode, q.builder)
+	segment, err := newDiskQueueSegment(path, q.segmentCapacity, 1, q.mode, q.builder)
 
 	if err != nil {
 		return err
@@ -336,7 +336,7 @@ func (q *DiskQueue) createNewSegment(path string) error {
 }
 
 func (q *DiskQueue) doLoadQueueSegments(path string, min, max int) error {
-	segment, err := loadSegment(path, q.segmentCapacity, min, q.mode, q.builder)
+	segment, err := loadDiskQueueSegment(path, q.segmentCapacity, min, q.mode, q.builder)
 
 	if err != nil {
 		return err
@@ -347,7 +347,7 @@ func (q *DiskQueue) doLoadQueueSegments(path string, min, max int) error {
 	if min == max {
 		q.lastSegment = segment
 	} else {
-		segment, err = loadSegment(path, q.segmentCapacity, max, q.mode, q.builder)
+		segment, err = loadDiskQueueSegment(path, q.segmentCapacity, max, q.mode, q.builder)
 
 		if err != nil {
 			return err

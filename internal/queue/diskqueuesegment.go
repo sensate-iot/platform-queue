@@ -8,23 +8,21 @@ import (
 	"io"
 	"os"
 	"path"
-	"sync"
 )
 
-type diskQueueSegment struct {
+type DiskQueueSegment struct {
 	directoryPath string
 	sequence      int
 	memoryQueue   Queue
 	mode          DiskQueueMode
 	builder       func() interface{}
-	mutex         sync.Mutex
 	file          *os.File
 	removeCount   int
 	dirty         bool
 }
 
-func newSegment(path string, size, seq int, mode DiskQueueMode, builder func() interface{}) (*diskQueueSegment, error) {
-	seg := diskQueueSegment{
+func newDiskQueueSegment(path string, size, seq int, mode DiskQueueMode, builder func() interface{}) (*DiskQueueSegment, error) {
+	seg := DiskQueueSegment{
 		memoryQueue:   NewDeque(size),
 		directoryPath: path,
 		sequence:      seq,
@@ -53,8 +51,8 @@ func newSegment(path string, size, seq int, mode DiskQueueMode, builder func() i
 	return &seg, nil
 }
 
-func loadSegment(path string, size, seq int, mode DiskQueueMode, builder func() interface{}) (*diskQueueSegment, error) {
-	seg := diskQueueSegment{
+func loadDiskQueueSegment(path string, size, seq int, mode DiskQueueMode, builder func() interface{}) (*DiskQueueSegment, error) {
+	seg := DiskQueueSegment{
 		memoryQueue:   NewDeque(size),
 		directoryPath: path,
 		sequence:      seq,
@@ -86,10 +84,7 @@ func loadSegment(path string, size, seq int, mode DiskQueueMode, builder func() 
 	return &seg, nil
 }
 
-func (s *diskQueueSegment) load() error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
+func (s *DiskQueueSegment) load() error {
 	file, err := os.OpenFile(s.path(), os.O_RDONLY, 0644)
 
 	if err != nil {
@@ -114,7 +109,7 @@ func (s *diskQueueSegment) load() error {
 	return nil
 }
 
-func (s *diskQueueSegment) doLoad() (bool, error) {
+func (s *DiskQueueSegment) doLoad() (bool, error) {
 	lengthBytes := make([]byte, 4)
 
 	if _, err := io.ReadFull(s.file, lengthBytes); err != nil {
@@ -138,7 +133,7 @@ func (s *diskQueueSegment) doLoad() (bool, error) {
 	return false, s.doLoadObject(int(length))
 }
 
-func (s *diskQueueSegment) doLoadRemovalMarker() error {
+func (s *DiskQueueSegment) doLoadRemovalMarker() error {
 	if s.memoryQueue.Size() <= 0 {
 		return fmt.Errorf("segment: unable to process remove marker on empty queue")
 	}
@@ -151,7 +146,7 @@ func (s *diskQueueSegment) doLoadRemovalMarker() error {
 	return nil
 }
 
-func (s *diskQueueSegment) doLoadObject(length int) error {
+func (s *DiskQueueSegment) doLoadObject(length int) error {
 	dataBytes := make([]byte, length)
 
 	if _, err := io.ReadFull(s.file, dataBytes); err != nil {
@@ -167,7 +162,7 @@ func (s *diskQueueSegment) doLoadObject(length int) error {
 	return s.memoryQueue.Enqueue(object)
 }
 
-func (s *diskQueueSegment) close() error {
+func (s *DiskQueueSegment) close() error {
 	if err := s.file.Close(); err != nil {
 		return fmt.Errorf("segment: unable to close: %v", err)
 	}
@@ -175,10 +170,7 @@ func (s *diskQueueSegment) close() error {
 	return nil
 }
 
-func (s *diskQueueSegment) dequeue() (interface{}, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
+func (s *DiskQueueSegment) dequeue() (interface{}, error) {
 	if s.memoryQueue.Size() <= 0 {
 		return nil, fmt.Errorf("segment: segment is empty")
 	}
@@ -186,10 +178,7 @@ func (s *diskQueueSegment) dequeue() (interface{}, error) {
 	return s.doDequeue()
 }
 
-func (s *diskQueueSegment) dequeueBatch(count int) ([]interface{}, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
+func (s *DiskQueueSegment) dequeueBatch(count int) ([]interface{}, error) {
 	result, err := s.memoryQueue.DequeueBatch(count)
 
 	if err != nil {
@@ -208,7 +197,7 @@ func (s *diskQueueSegment) dequeueBatch(count int) ([]interface{}, error) {
 	return result, nil
 }
 
-func (s *diskQueueSegment) dequeueFile() error {
+func (s *DiskQueueSegment) dequeueFile() error {
 	length := 0
 	lengthBytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(lengthBytes, uint32(length))
@@ -222,7 +211,7 @@ func (s *diskQueueSegment) dequeueFile() error {
 	return nil
 }
 
-func (s *diskQueueSegment) doDequeue() (interface{}, error) {
+func (s *DiskQueueSegment) doDequeue() (interface{}, error) {
 	if err := s.dequeueFile(); err != nil {
 		return nil, err
 	}
@@ -243,10 +232,7 @@ func (s *diskQueueSegment) doDequeue() (interface{}, error) {
 	return object, nil
 }
 
-func (s *diskQueueSegment) enqueue(obj interface{}) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
+func (s *DiskQueueSegment) enqueue(obj interface{}) error {
 	if err := s.doEnqueue(obj); err != nil {
 		return err
 	}
@@ -254,9 +240,7 @@ func (s *diskQueueSegment) enqueue(obj interface{}) error {
 	return s.sync()
 }
 
-func (s *diskQueueSegment) enqueueBatch(objects []interface{}) (int, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (s *DiskQueueSegment) enqueueBatch(objects []interface{}) (int, error) {
 	var count int
 
 	for _, entry := range objects {
@@ -273,7 +257,7 @@ func (s *diskQueueSegment) enqueueBatch(objects []interface{}) (int, error) {
 	return count, s.sync()
 }
 
-func (s *diskQueueSegment) enqueueToFile(obj interface{}) error {
+func (s *DiskQueueSegment) enqueueToFile(obj interface{}) error {
 	var buff bytes.Buffer
 	enc := gob.NewEncoder(&buff)
 
@@ -296,7 +280,7 @@ func (s *diskQueueSegment) enqueueToFile(obj interface{}) error {
 	return nil
 }
 
-func (s *diskQueueSegment) doEnqueue(obj interface{}) error {
+func (s *DiskQueueSegment) doEnqueue(obj interface{}) error {
 	if err := s.enqueueToFile(obj); err != nil {
 		return nil
 	}
@@ -308,10 +292,7 @@ func (s *diskQueueSegment) doEnqueue(obj interface{}) error {
 	return nil
 }
 
-func (s *diskQueueSegment) delete() error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
+func (s *DiskQueueSegment) delete() error {
 	if err := s.file.Close(); err != nil {
 		return fmt.Errorf("segment: unable to close segment file %d: %v", s.sequence, err)
 	}
@@ -326,7 +307,7 @@ func (s *diskQueueSegment) delete() error {
 	return nil
 }
 
-func (s *diskQueueSegment) sync() error {
+func (s *DiskQueueSegment) sync() error {
 	if s.mode == FastMode {
 		s.dirty = true
 		return nil
@@ -340,36 +321,24 @@ func (s *diskQueueSegment) sync() error {
 	return nil
 }
 
-func (s *diskQueueSegment) path() string {
+func (s *DiskQueueSegment) path() string {
 	file := fmt.Sprintf("%016d.que", s.sequence)
 	return path.Join(s.directoryPath, file)
 }
 
-func (s *diskQueueSegment) sizeOnDisk() int {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
+func (s *DiskQueueSegment) sizeOnDisk() int {
 	return s.memoryQueue.Size() + s.removeCount
 }
 
-func (s *diskQueueSegment) empty() bool {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
+func (s *DiskQueueSegment) empty() bool {
 	return s.memoryQueue.Size() == 0
 }
 
-func (s *diskQueueSegment) setMode(mode DiskQueueMode) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
+func (s *DiskQueueSegment) setMode(mode DiskQueueMode) {
 	s.mode = mode
 }
 
-func (s *diskQueueSegment) size() int {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
+func (s *DiskQueueSegment) size() int {
 	return s.memoryQueue.Size()
 }
 

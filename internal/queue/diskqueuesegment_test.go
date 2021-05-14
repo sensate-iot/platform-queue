@@ -19,7 +19,7 @@ func builderFunc() interface{} {
 func TestDiskQueueSegment_Enqueue(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "SegTest")
 
-	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
+	seg, err := newDiskQueueSegment(dir, 8, 1, FastMode, builderFunc)
 
 	assert.Nil(t, err)
 	err = seg.enqueue(&segmentTestInterface{Value: "abc"})
@@ -28,7 +28,7 @@ func TestDiskQueueSegment_Enqueue(t *testing.T) {
 
 func TestDiskQueueSegment_EnqueueBatch(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "SegTest")
-	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
+	seg, err := newDiskQueueSegment(dir, 8, 1, FastMode, builderFunc)
 	assert.Nil(t, err)
 
 	data := make([]*segmentTestInterface, 10)
@@ -51,7 +51,7 @@ func TestDiskQueueSegment_EnqueueBatch(t *testing.T) {
 func TestDiskQueueSegment_Dequeue(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "SegTest")
 
-	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
+	seg, err := newDiskQueueSegment(dir, 8, 1, FastMode, builderFunc)
 
 	assert.Nil(t, err)
 	err = seg.enqueue(&segmentTestInterface{Value: "abc"})
@@ -67,7 +67,7 @@ func TestDiskQueueSegment_Dequeue(t *testing.T) {
 
 func TestDiskQueueSegment_DequeueBatch(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "SegTest")
-	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
+	seg, err := newDiskQueueSegment(dir, 8, 1, FastMode, builderFunc)
 	assert.Nil(t, err)
 
 	_ = seg.enqueue(&segmentTestInterface{Value: "aba"})
@@ -81,7 +81,7 @@ func TestDiskQueueSegment_DequeueBatch(t *testing.T) {
 
 func TestDiskQueueSegment_CanDeleteSegment(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "SegTest")
-	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
+	seg, err := newDiskQueueSegment(dir, 8, 1, FastMode, builderFunc)
 	assert.Nil(t, err)
 
 	_ = seg.enqueue(&segmentTestInterface{Value: "aba"})
@@ -96,7 +96,7 @@ func TestDiskQueueSegment_CanDeleteSegment(t *testing.T) {
 
 func TestDiskQueueSegment_CannotDeleteNonExistentSegment(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "SegTest")
-	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
+	seg, err := newDiskQueueSegment(dir, 8, 1, FastMode, builderFunc)
 
 	assert.Nil(t, err)
 	err = seg.delete()
@@ -108,7 +108,7 @@ func TestDiskQueueSegment_CannotDeleteNonExistentSegment(t *testing.T) {
 func TestDiskQueueSegment_Load(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "SegTest")
 
-	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
+	seg, err := newDiskQueueSegment(dir, 8, 1, FastMode, builderFunc)
 	assert.Nil(t, err)
 
 	_ = seg.enqueue(&segmentTestInterface{Value: "aba"})
@@ -118,7 +118,7 @@ func TestDiskQueueSegment_Load(t *testing.T) {
 	_ = seg.enqueue(&segmentTestInterface{Value: "abe"})
 	_ = seg.close()
 
-	act, err := loadSegment(dir, 8, 1, FastMode, builderFunc)
+	act, err := loadDiskQueueSegment(dir, 8, 1, FastMode, builderFunc)
 	assert.Nil(t, err)
 
 	validateBatchDequeue(t, act)
@@ -131,7 +131,7 @@ func TestDiskQueueSegment_LoadDeletes(t *testing.T) {
 	assert.Nil(t, err)
 	_ = seg.close()
 
-	act, err := loadSegment(dir, 8, 1, FastMode, builderFunc)
+	act, err := loadDiskQueueSegment(dir, 8, 1, FastMode, builderFunc)
 	assert.Nil(t, err)
 
 	objects, err := act.dequeueBatch(3)
@@ -146,7 +146,7 @@ func TestDiskQueueSegment_LoadDeletes(t *testing.T) {
 
 func TestDiskQueueSegment_CannotLoadFromBadDirectory(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "BadDir")
-	seg, err := loadSegment(dir, 8, 1, FastMode, builderFunc)
+	seg, err := loadDiskQueueSegment(dir, 8, 1, FastMode, builderFunc)
 
 	assert.NotNil(t, err)
 	assert.Nil(t, seg)
@@ -159,7 +159,7 @@ func TestDiskQueueSegment_CannotLoadNonExistentSegment(t *testing.T) {
 	assert.Nil(t, err)
 	_ = seg.close()
 
-	act, err := loadSegment(dir, 8, 2, FastMode, builderFunc)
+	act, err := loadDiskQueueSegment(dir, 8, 2, FastMode, builderFunc)
 	assert.Nil(t, act)
 	assert.NotNil(t, err)
 }
@@ -167,7 +167,7 @@ func TestDiskQueueSegment_CannotLoadNonExistentSegment(t *testing.T) {
 func TestDiskQueueSegment_Size(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "SegTest")
 
-	seg, err := newSegment(dir, 8, 1, FastMode, builderFunc)
+	seg, err := newDiskQueueSegment(dir, 8, 1, FastMode, builderFunc)
 
 	assert.Nil(t, err)
 	err = seg.enqueue(segmentTestInterface{Value: "abc"})
@@ -186,7 +186,7 @@ func TestDiskQueueSegment_SizeOnDisk(t *testing.T) {
 
 func TestDiskQueueSegment_SetMode(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "SegTest")
-	q, err := newSegment(dir, 8, 1, FastMode, builderFunc)
+	q, err := newDiskQueueSegment(dir, 8, 1, FastMode, builderFunc)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, q)
@@ -198,7 +198,7 @@ func TestDiskQueueSegment_SetMode(t *testing.T) {
 
 func TestDiskQueueSegment_NormalMode(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "SegTest")
-	q, err := newSegment(dir, 8, 1, NormalMode, builderFunc)
+	q, err := newDiskQueueSegment(dir, 8, 1, NormalMode, builderFunc)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, q)
@@ -220,7 +220,7 @@ func TestDiskQueueSegment_NormalMode(t *testing.T) {
 	assert.Equal(t, "Hello 2", elements[1].Value)
 }
 
-func validateBatchDequeue(t *testing.T, seg *diskQueueSegment) {
+func validateBatchDequeue(t *testing.T, seg *DiskQueueSegment) {
 	objects, err := seg.dequeueBatch(3)
 	assert.Nil(t, err)
 
@@ -242,8 +242,8 @@ func interfaceToSegmentTestInterface(values []interface{}) []segmentTestInterfac
 	return results
 }
 
-func createSplitSegmentQueue(dir string) (*diskQueueSegment, error) {
-	q, err := newSegment(dir, 8, 1, FastMode, builderFunc)
+func createSplitSegmentQueue(dir string) (*DiskQueueSegment, error) {
+	q, err := newDiskQueueSegment(dir, 8, 1, FastMode, builderFunc)
 
 	if err != nil {
 		return nil, err

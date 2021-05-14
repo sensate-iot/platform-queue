@@ -8,6 +8,8 @@ PROTOC := @protoc
 
 ifeq ($(OS),Windows_NT)
 	QSERVER_EXEC = bin/queue-server.exe
+	QUEUE_SYNC_TEST = bin/sync-queue-test.exe
+	QUEUE_ASYNC_TEST = bin/async-queue-test.exe
 else
 	QSERVER_EXEC = bin/queue-server
 endif
@@ -17,6 +19,13 @@ _all: deps all
 all: build-grpc
 	@echo Building queue-server
 	$(GO) build -o $(QSERVER_EXEC) -ldflags "-s -w" platform-queue/cmd/queue-server
+
+build-tests: deps
+	@echo Building synchronous queue benchmark
+	$(GO) build -o $(QUEUE_SYNC_TEST)  platform-queue/test/queue/sync
+
+	@echo Building asynchronous queue benchmark
+	$(GO) build -o $(QUEUE_ASYNC_TEST)  platform-queue/test/queue/async
 
 deps:
 	@echo Downloading dependencies

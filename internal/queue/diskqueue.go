@@ -2,11 +2,12 @@ package queue
 
 import (
 	"fmt"
-	"github.com/gofrs/flock"
 	"io/ioutil"
 	"os"
 	"path"
 	"sync"
+
+	"github.com/gofrs/flock"
 )
 
 var (
@@ -189,6 +190,10 @@ func (q *DiskQueue) dequeueFromFile(path string) error {
 func (q *DiskQueue) DequeueBatch(count int) ([]interface{}, error) {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
+
+	if q.firstSegment.size() <= 0 {
+		return nil, fmt.Errorf("disk-queue: unable to dequeue from an empty queue")
+	}
 
 	fullPath := path.Join(q.basePath, q.name)
 	values := make([]interface{}, 0)

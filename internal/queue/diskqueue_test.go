@@ -1,9 +1,10 @@
 package queue
 
 import (
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type diskQueueInterface struct {
@@ -33,7 +34,6 @@ func TestDiskQueue_CannotCreateOnExistingDirectory(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-
 func TestDiskQueue_New(t *testing.T) {
 	q, err := createDiskQueue()
 
@@ -56,6 +56,7 @@ func TestDiskQueue_LoadExisting(t *testing.T) {
 	assert.NotNil(t, q1)
 
 	err = q1.(*DiskQueue).Close()
+	assert.Nil(t, err)
 	q2, err := LoadDiskQueue(dir, "TestQueue", buildDiskQueueInterface, 100)
 
 	assert.Nil(t, err)
@@ -98,10 +99,10 @@ func TestDiskQueue_EnqueueOverflowTwice(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, q)
 
-	err = q.Enqueue(&diskQueueInterface{Value: "Hi 1"})
-	err = q.Enqueue(&diskQueueInterface{Value: "Hi 2"})
-	err = q.Enqueue(&diskQueueInterface{Value: "Hi 3"})
-	err = q.Enqueue(&diskQueueInterface{Value: "Hi 4"})
+	_ = q.Enqueue(&diskQueueInterface{Value: "Hi 1"})
+	_ = q.Enqueue(&diskQueueInterface{Value: "Hi 2"})
+	_ = q.Enqueue(&diskQueueInterface{Value: "Hi 3"})
+	_ = q.Enqueue(&diskQueueInterface{Value: "Hi 4"})
 	err = q.Enqueue(&diskQueueInterface{Value: "Hi 5"})
 
 	assert.Nil(t, err)
@@ -122,6 +123,17 @@ func TestDiskQueue_EnqueueBatch(t *testing.T) {
 	assert.Equal(t, "Hello 1", value.Value)
 }
 
+func TestDiskQueue_DequeueBatchEmpty(t *testing.T) {
+	q, err := createDiskQueue()
+
+	assert.Nil(t, err)
+	assert.NotNil(t, q)
+
+	result, err := q.DequeueBatch(100)
+	assert.NotNil(t, err)
+	assert.Nil(t, result)
+}
+
 func TestDiskQueue_DequeueOverflow(t *testing.T) {
 	q, err := createMultiQueue()
 	assert.Nil(t, err)
@@ -129,6 +141,7 @@ func TestDiskQueue_DequeueOverflow(t *testing.T) {
 	_ = q.Enqueue(&diskQueueInterface{Value: "Hello 6"})
 
 	result, err := q.Dequeue()
+	assert.Nil(t, err)
 	value, ok := result.(*diskQueueInterface)
 	assert.True(t, ok)
 	assert.Equal(t, "Hello 1", value.Value)
@@ -165,14 +178,14 @@ func TestDiskQueue_DequeueOverflow(t *testing.T) {
 }
 
 func TestDiskQueue_Size(t *testing.T) {
-	q,err := createDiskQueue()
+	q, err := createDiskQueue()
 
 	assert.Nil(t, err)
 	assert.Equal(t, 0, q.Size())
 }
 
 func TestDiskQueue_Capacity(t *testing.T) {
-	q,err := createDiskQueue()
+	q, err := createDiskQueue()
 
 	assert.Nil(t, err)
 	assert.Equal(t, MaxInt, q.Capacity())
@@ -217,11 +230,11 @@ func TestDiskQueue_DequeueBatchUnderflow(t *testing.T) {
 	assert.Equal(t, "Hello 5", values[4].Value)
 }
 
-func createDiskQueue() (Queue,error) {
+func createDiskQueue() (Queue, error) {
 	dir, _ := ioutil.TempDir("", "SegTest")
 	q, err := NewDiskQueue(dir, "TestQueue", buildDiskQueueInterface, 100)
 
-	return q,err
+	return q, err
 }
 
 func createMultiQueue() (Queue, error) {
